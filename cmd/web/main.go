@@ -1,37 +1,20 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"log"
 	"net/http"
-	"time"
 )
 
-type application struct {
-	debug bool
-}
-
 func main() {
-	fmt.Println("Hello World")
+	// Setting up server
+	mux := http.NewServeMux()
 
-	addr := flag.String("addr", ":4000", "HTTP network address")
-
-	flag.Parse()
-
-	app := &application{
-		debug: false,
-	}
-
-	srv := &http.Server{
-		Addr:         *addr,
-		Handler:      app.routes(),
-		IdleTimeout:  time.Minute,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-	}
+	// routes
+	mux.HandleFunc("/", home)
+	mux.HandleFunc("/note/view", noteView)
+	mux.HandleFunc("/note/create", noteCreate)
 
 	log.Println("Starting server on :4000")
-	err := srv.ListenAndServe()
+	err := http.ListenAndServe(":4000", mux)
 	log.Fatal(err)
 }
