@@ -2,41 +2,24 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
-	"text/template"
 )
 
-func home(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
+func (app *application) home(w http.ResponseWriter, r *http.Request) {
+	notes, err := app.notes.Latest()
+	if err != nil {
+		app.serverError(w, err)
 		return
 	}
 
-	files := []string{
-		"./ui/html/base.templ",
-		"./ui/html/partials/nav.templ",
-		"./ui/html/pages/home.templ",
-	}
+	data := app.newTemplateData(r)
+	data.Notes = notes
 
-	// Setting up templates
-	ts, err := template.ParseFiles(files...)
-	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-
-		return
-	}
-
-	err = ts.ExecuteTemplate(w, "base", nil)
-	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-	}
+	app.render(w, http.StatusOK, "home.templ", data)
 }
 
-func noteView(w http.ResponseWriter, r *http.Request) {
+func (app *application) noteView(w http.ResponseWriter, r *http.Request) {
 
 	id, err := strconv.Atoi(r.URL.Query().Get("id"))
 	if err != nil || id < 1 {
@@ -47,7 +30,7 @@ func noteView(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Viewing Note # %d...", id)
 }
 
-func noteCreate(w http.ResponseWriter, r *http.Request) {
+func (app *application) noteCreate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		w.Header().Set("Allow", http.MethodPost) // let client know it allows for POST requests at this end point
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)

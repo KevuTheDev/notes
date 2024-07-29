@@ -1,11 +1,52 @@
 package main
 
 import (
+	"database/sql"
+	"flag"
 	"log"
 	"net/http"
+	"os"
+	"text/template"
+
+	"github.com/KevuTheDev/notes/internal/models"
 )
 
+type application struct {
+	errorLog      *log.Logger
+	infoLog       *log.Logger
+	notes         models.NoteModelInterface
+	templateCache map[string]*template.Template
+}
+
 func main() {
+	addr := flag.String("addr", ":4000", "HTTP network address")
+
+	dsn := flag.String("dsn", "web:OBNRGPh9QRRD!bwY@Tx&WLUD@/notebook?parseTime=true", "MySQL data source name")
+
+	flag.Parse()
+
+	// Logging information
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+
+	db, err := openDB(*dsn)
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
+	defer db.Close()
+
+	templateCache, err := newTemplateCache()
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
+	app := &application{
+		infoLog:       infoLog,
+		errorLog:      errorLog,
+		notes:         &models.NoteModel{DB: db},
+		templateCache: templateCache,
+	}
 	// Setting up server
 	mux := http.NewServeMux()
 
@@ -20,11 +61,28 @@ func main() {
 	mux.Handle("/static/", http.StripPrefix("/static", fileServer))
 
 	// routes
-	mux.HandleFunc("/", home)
-	mux.HandleFunc("/note/view", noteView)
-	mux.HandleFunc("/note/create", noteCreate)
+	mux.HandleFunc("/", app.home)
+	mux.HandleFunc("/note/view", app.noteView)
+	mux.HandleFunc("/note/create", app.noteCreate)
 
-	log.Println("Starting server on :4000")
-	err := http.ListenAndServe(":4000", mux)
-	log.Fatal(err)
+	srv := &http.Server{
+		Addr:     *addr,
+		ErrorLog: errorLog,
+		Handler:  mux,
+	}
+
+	infoLog.Printf("Starting server on %s", *addr)
+	err = srv.ListenAndServe()
+	errorLog.Fatal(err)
+}
+
+func openDB(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, err
+	}
+	if err = db.Ping(); err != nil {
+		return nil, err
+	}
+	return db, nil
 }
