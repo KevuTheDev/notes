@@ -3,7 +3,6 @@ package models
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 )
 
@@ -56,7 +55,6 @@ func (m *NoteModel) Get(id int) (*Note, error) {
 			return nil, err
 		}
 	}
-	fmt.Println("GET")
 
 	// If everything went OK then return the Snippet object.
 	return n, nil

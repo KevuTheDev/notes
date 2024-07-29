@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/KevuTheDev/notes/ui"
@@ -13,7 +12,6 @@ func (app *application) routes() http.Handler {
 	router := httprouter.New()
 
 	router.NotFound = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("What")
 		app.notFound(w)
 	})
 

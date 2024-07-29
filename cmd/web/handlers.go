@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -19,14 +18,11 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 
 	data := app.newTemplateData(r)
 	data.Notes = notes
-	fmt.Println("home")
 
 	app.render(w, http.StatusOK, "home.templ", data)
 }
 
 func (app *application) noteView(w http.ResponseWriter, r *http.Request) {
-
-	fmt.Println("note view")
 	params := httprouter.ParamsFromContext(r.Context())
 
 	// We can then use the ByName() method to get the value of the "id" named
@@ -49,10 +45,6 @@ func (app *application) noteView(w http.ResponseWriter, r *http.Request) {
 
 	data := app.newTemplateData(r)
 	data.Note = note
-
-	fmt.Println(data.Note.Title)
-
-	fmt.Println("note view")
 	app.render(w, http.StatusOK, "view.templ", data)
 }
 
@@ -64,6 +56,5 @@ func (app *application) noteCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("note create")
 	w.Write([]byte("Creating new note..."))
 }
