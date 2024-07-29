@@ -1,53 +1,62 @@
 package main
 
 import (
+	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
-	"text/template"
+
+	"github.com/KevuTheDev/notes/internal/models"
+	"github.com/julienschmidt/httprouter"
 )
 
-func home(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
+func (app *application) home(w http.ResponseWriter, r *http.Request) {
+	notes, err := app.notes.Latest()
+	if err != nil {
+		app.serverError(w, err)
 		return
 	}
 
-	files := []string{
-		"./ui/html/base.templ",
-		"./ui/html/partials/nav.templ",
-		"./ui/html/pages/home.templ",
-	}
+	data := app.newTemplateData(r)
+	data.Notes = notes
+	fmt.Println("home")
 
-	// Setting up templates
-	ts, err := template.ParseFiles(files...)
-	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-
-		return
-	}
-
-	err = ts.ExecuteTemplate(w, "base", nil)
-	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-	}
+	app.render(w, http.StatusOK, "home.templ", data)
 }
 
-func noteView(w http.ResponseWriter, r *http.Request) {
+func (app *application) noteView(w http.ResponseWriter, r *http.Request) {
 
-	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	fmt.Println("note view")
+	params := httprouter.ParamsFromContext(r.Context())
+
+	// We can then use the ByName() method to get the value of the "id" named
+	// parameter from the slice and validate it as normal.
+	id, err := strconv.Atoi(params.ByName("id"))
 	if err != nil || id < 1 {
-		http.NotFound(w, r)
+		app.notFound(w)
 		return
 	}
 
-	fmt.Fprintf(w, "Viewing Note # %d...", id)
+	note, err := app.notes.Get(id)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(w)
+		} else {
+			app.serverError(w, err)
+		}
+		return
+	}
+
+	data := app.newTemplateData(r)
+	data.Note = note
+
+	fmt.Println(data.Note.Title)
+
+	fmt.Println("note view")
+	app.render(w, http.StatusOK, "view.templ", data)
 }
 
-func noteCreate(w http.ResponseWriter, r *http.Request) {
+func (app *application) noteCreate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		w.Header().Set("Allow", http.MethodPost) // let client know it allows for POST requests at this end point
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -55,5 +64,6 @@ func noteCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("note create")
 	w.Write([]byte("Creating new note..."))
 }

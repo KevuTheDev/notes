@@ -2,5 +2,23 @@
 
 {{define "main"}}
     <h2>Latest Notes</h2>
-    <p>There's nothing to see here yet!</p>
+    {{if .Notes}}
+    <table>
+        <tr>
+            <th>Title</th>
+            <th>Created</th>
+            <th>ID</th>
+        </tr>
+        {{range .Notes}}
+        <tr>
+            <!-- Use the new clean URL style-->
+            <td><a href='/note/view/{{.ID}}'>{{.Title}}</a></td>
+            <td>{{humanReadableDate .Created}}</td>
+            <td>#{{.ID}}</td>
+        </tr>
+        {{end}}
+    </table>
+    {{else}}
+        <p>There's nothing to see here... yet!</p>
+    {{end}}
 {{end}}

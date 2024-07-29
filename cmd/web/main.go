@@ -1,30 +1,81 @@
 package main
 
 import (
+	"database/sql"
+	"flag"
 	"log"
 	"net/http"
+	"os"
+	"text/template"
+	"time"
+
+	"github.com/KevuTheDev/notes/internal/models"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
+type application struct {
+	debug         bool
+	errorLog      *log.Logger
+	infoLog       *log.Logger
+	notes         models.NoteModelInterface
+	templateCache map[string]*template.Template
+}
+
 func main() {
-	// Setting up server
-	mux := http.NewServeMux()
+	addr := flag.String("addr", ":4000", "HTTP network address")
 
-	// Set up a file server that delivers files from the "./ui/static" directory.
-	// Ensure that the path specified for the http.Dir function is relative
-	// to the project's root directory.
-	fileServer := http.FileServer(http.Dir("./ui/static/"))
+	dsn := flag.String("dsn", "web:OBNRGPh9QRRD!bwY@Tx&WLUD@/notebook?parseTime=true", "MySQL data source name")
 
-	// Use the mux.Handle() function to register the file server as the handler
-	// for all URL paths that start with "/static/". For matching paths, we
-	// strip the "/static" prefix before the request reaches the file server.
-	mux.Handle("/static/", http.StripPrefix("/static", fileServer))
+	debug := flag.Bool("debug", false, "Enable debug mode")
 
-	// routes
-	mux.HandleFunc("/", home)
-	mux.HandleFunc("/note/view", noteView)
-	mux.HandleFunc("/note/create", noteCreate)
+	flag.Parse()
 
-	log.Println("Starting server on :4000")
-	err := http.ListenAndServe(":4000", mux)
-	log.Fatal(err)
+	// Logging information
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+
+	db, err := openDB(*dsn)
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
+	defer db.Close()
+
+	templateCache, err := newTemplateCache()
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
+	app := &application{
+		debug:         *debug,
+		infoLog:       infoLog,
+		errorLog:      errorLog,
+		notes:         &models.NoteModel{DB: db},
+		templateCache: templateCache,
+	}
+
+	srv := &http.Server{
+		Addr:         *addr,
+		ErrorLog:     errorLog,
+		Handler:      app.routes(),
+		IdleTimeout:  time.Minute,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+
+	infoLog.Printf("Starting server on %s", *addr)
+	err = srv.ListenAndServe()
+	errorLog.Fatal(err)
+}
+
+func openDB(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, err
+	}
+	if err = db.Ping(); err != nil {
+		return nil, err
+	}
+	return db, nil
 }
